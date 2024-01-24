@@ -21,6 +21,7 @@ import contextlib
 
 import pytest
 from sqlalchemy import Column, DateTime, Integer, String, Numeric
+import time
 
 import google.api_core.exceptions
 from google.cloud.bigquery import SchemaField, TimePartitioning
@@ -81,6 +82,7 @@ def test_alembic_scenario(alembic_table):
         SchemaField("description", "STRING(200)"),
     ]
 
+    # Operation 1
     op.bulk_insert(
         account,
         [
@@ -96,6 +98,7 @@ def test_alembic_scenario(alembic_table):
         {"description": None, "id": 3, "name": "savings"},
     ]
 
+    # Operation 2
     op.add_column(
         "account", Column("last_transaction_date", DateTime, comment="when updated")
     )
@@ -107,6 +110,21 @@ def test_alembic_scenario(alembic_table):
         SchemaField("last_transaction_date", "DATETIME", description="when updated"),
     ]
 
+
+
+    # Operation 3
+    op.rename_table("account", "accounts")
+    assert alembic_table("account") is None
+    assert alembic_table("accounts", "schema") == [
+        SchemaField("id", "INTEGER", "REQUIRED"),
+        SchemaField("name", "STRING(50)", "REQUIRED", description="The name"),
+        SchemaField("description", "STRING(200)"),
+        SchemaField("last_transaction_date", "DATETIME", description="when updated"),
+    ]
+    op.drop_table("accounts")
+    assert alembic_table("accounts") is None
+
+    # some other tests to space operations out
     op.create_table(
         "account_w_comment",
         Column("id", Integer, nullable=False),
@@ -126,17 +144,10 @@ def test_alembic_scenario(alembic_table):
 
     op.drop_table("account_w_comment")
     assert alembic_table("account_w_comment") is None
+    # end of that spacer test
 
-    op.rename_table("account", "accounts")
-    assert alembic_table("account") is None
-    assert alembic_table("accounts", "schema") == [
-        SchemaField("id", "INTEGER", "REQUIRED"),
-        SchemaField("name", "STRING(50)", "REQUIRED", description="The name"),
-        SchemaField("description", "STRING(200)"),
-        SchemaField("last_transaction_date", "DATETIME", description="when updated"),
-    ]
-    op.drop_table("accounts")
-    assert alembic_table("accounts") is None
+    time.sleep(5)
+
 
     op.create_table(
         "transactions",
